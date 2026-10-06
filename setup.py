@@ -74,40 +74,10 @@ version_info = ({})
 
 
 def get_version():
-    # Keep metadata builds working when pip runs setup.py egg_info before
-    # the historical generated version file is created.
-    if not os.path.exists(version_file):
-        write_version_py()
-    with open(version_file, 'r') as f:
-        exec(compile(f.read(), version_file, 'exec'))
-    return locals()['__version__']
-
-
-def make_cuda_ext(name, module, sources, sources_cuda=None):
-    if sources_cuda is None:
-        sources_cuda = []
-    define_macros = []
-    extra_compile_args = {'cxx': []}
-
-    if torch.cuda.is_available() or os.getenv('FORCE_CUDA', '0') == '1':
-        define_macros += [('WITH_CUDA', None)]
-        extension = CUDAExtension
-        extra_compile_args['nvcc'] = [
-            '-D__CUDA_NO_HALF_OPERATORS__',
-            '-D__CUDA_NO_HALF_CONVERSIONS__',
-            '-D__CUDA_NO_HALF2_OPERATORS__',
-        ]
-        sources += sources_cuda
-    else:
-        print(f'Compiling {name} without CUDA')
-        extension = CppExtension
-
-    return extension(
-        name=f'{module}.{name}',
-        sources=[os.path.join(*module.split('.'), p) for p in sources],
-        define_macros=define_macros,
-        extra_compile_args=extra_compile_args)
-
+    # Read the static VERSION file during metadata generation.
+    # This avoids writing generated files during pip egg_info.
+    with open('VERSION', encoding='utf-8') as f:
+        return f.read().strip()
 
 def get_requirements(filename='requirements.txt'):
     here = os.path.dirname(os.path.realpath(__file__))
@@ -147,7 +117,6 @@ if __name__ == '__main__':
         ext_modules = []
         setup_kwargs = dict()
 
-    write_version_py()
     setup(
         name='basicsr',
         version=get_version(),
